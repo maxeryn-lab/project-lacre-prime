@@ -1,0 +1,109 @@
+// Definición del servicio gRPC de Lacre — tercer Adaptador real
+// (Etapa 21). Presiona la costura Núcleo/Profile/Adaptador de una
+// forma que ni HTTP (JSON suelto, sin schema) ni WebSocket (JSON sobre
+// conexión persistente) ejercitan: un cliente gRPC necesita este
+// archivo .proto (o el código generado a partir de él) para poder
+// comunicarse — el contrato está fijado por tipo, no por convención de
+// nombres de campo JSON.
+//
+// Los cinco RPCs corresponden exactamente a las cinco operaciones de
+// `domain.rs` (Handshake, Seal, Verify, Ack, Receipts) — mismo
+// principio que ya se aplicó en websocket_adapter.rs: el Adaptador
+// traduce entre su propio formato de wire (acá, protobuf) y los tipos
+// de dominio ya existentes, sin que la lógica de negocio necesite
+// saber que gRPC existe.
+
+syntax = "proto3";
+
+package lacre.v1;
+
+service LacreGrpc {
+  rpc Handshake(HandshakeRequest) returns (HandshakeResponse);
+  rpc Seal(SealRequest) returns (SealResponse);
+  rpc Verify(VerifyRequest) returns (VerifyResponse);
+  rpc Ack(AckRequest) returns (AckResponse);
+  rpc Receipts(ReceiptsRequest) returns (ReceiptsResponse);
+}
+
+message HandshakeRequest {
+  string client_public_key_hex = 1;
+}
+
+message HandshakeResponse {
+  string server_public_key_hex = 1;
+  string session_id = 2;
+  uint32 key_id = 3; // uint32 porque protobuf no tiene un tipo de 8 bits; el Adaptador valida que encaje en un u8 antes de pasarlo a domain.rs
+}
+
+message SealRequest {
+  string profile = 1;
+  string payload_hex = 2;
+  optional string session_id = 3; // ausente = clave estática del servidor; presente = sesión de handshake (8.4), mismo criterio que SealRequest de http_adapter.rs
+}
+
+message SealedFrame {
+  string session_id = 1;
+  uint64 index = 2;
+  optional uint64 total_fragments = 3;
+  bool is_last = 4;
+  string payload_hex = 5;
+  string seal_hex = 6;
+  optional string vault_signature_hex = 7; // ausente para cualquier perfil que no sea Vault
+}
+
+message SealResponse {
+  string session_id = 1;
+  repeated SealedFrame frames = 2;
+}
+
+message VerifyRequest {
+  string profile = 1;
+  string session_id = 2;
+  uint32 key_id = 3;
+  repeated SealedFrame frames = 4;
+}
+
+message FrameVerificationResult {
+  uint64 index = 1;
+  bool ok = 2;
+  optional string error = 3;
+}
+
+message VerifyResponse {
+  string session_id = 1;
+  repeated FrameVerificationResult results = 2;
+  bool all_verified = 3;
+}
+
+message AckRequest {
+  string session_id = 1;
+  repeated uint64 indices = 2;
+}
+
+message AckResult {
+  uint64 index = 1;
+  bool ok = 2;
+  optional string error = 3;
+}
+
+message AckResponse {
+  string session_id = 1;
+  repeated AckResult results = 2;
+  bool all_acknowledged = 3;
+  uint64 total_receipts = 4;
+}
+
+message ReceiptsRequest {
+  string session_id = 1;
+}
+
+message ReceiptEntry {
+  uint64 fragment_index = 1;
+  string receipt_hex = 2;
+  uint32 purged_at_ms = 3;
+}
+
+message ReceiptsResponse {
+  string session_id = 1;
+  repeated ReceiptEntry entries = 2;
+}

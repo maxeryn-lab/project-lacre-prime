@@ -1,0 +1,32 @@
+[package]
+name = "lacre-server"
+version = "0.1.0"
+edition = "2021"
+
+# Este crate SÍ depende de tokio — es el Adaptador (7.4), no el
+# Núcleo. Consume lacre-core como librería, sin poder ver ni tocar sus
+# internos más allá de lo que lacre-core expone como `pub`.
+[dependencies]
+axum = { version = "0.8.9", features = ["ws"] }
+hex = "0.4.3"
+lacre-core = { path = "../lacre-core" }
+prost = "0.14.4"
+# Cliente HTTP saliente para el Miner de Telegraph (weather_miner.rs):
+# lacre-server necesita llamar a una API upstream real (Open-Meteo)
+# antes de sellar su respuesta. `rustls-tls` en vez del default
+# (OpenSSL de sistema) para no agregar una dependencia de compilación
+# nativa nueva al entorno — tokio y axum ya asumen un runtime async
+# puro-Rust, este cliente sigue el mismo criterio.
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+tokio = { version = "1.53.1", features = ["full"] }
+tonic = "0.14.6"
+tonic-prost = "0.14.6"
+
+[dev-dependencies]
+tower = { version = "0.5.3", features = ["util"] }
+
+[build-dependencies]
+tonic-build = "0.14.6"
+tonic-prost-build = "0.14.6"

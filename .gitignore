@@ -1,0 +1,20 @@
+/target
+Cargo.lock
+*.swp
+.DS_Store
+
+# Credenciales e infraestructura local — nunca deben subirse
+.env
+.env.*
+*.pem
+*.key
+.cloudflared-token
+LACRE_MASTER_KEY*
+
+# Documentación interna de sesión de trabajo (no destinada al repo público)
+PROJECT_STATE.md
+PENDING.md
+CHANGELOG.md
+DECISIONS.md
+ARCHITECTURE_NOTES.md
+LESSONS_LEARNED.md

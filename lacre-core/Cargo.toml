@@ -1,0 +1,41 @@
+[package]
+name = "lacre-core"
+version = "0.1.0"
+edition = "2021"
+
+# Deliberadamente SIN tokio ni axum ni ningún runtime asíncrono — ver
+# 7.2 del documento Lacre Prime ([DO]): "la implementación de
+# referencia del Núcleo debe ser compilable sin dependencia de un
+# runtime de ejecución asíncrona (...), constituyendo dicho runtime una
+# capa de adaptación opcional y no un requisito del Núcleo mismo."
+#
+# Este archivo es la prueba de esa propiedad, no solo su declaración:
+# si algún día alguien agrega `tokio` aquí, el build de este crate en
+# aislamiento (sin lacre-server) sigue compilando igual — lo que
+# rompería la garantía sería agregarlo como dependencia de este
+# Cargo.toml, y eso es visible a simple vista en este archivo.
+[dependencies]
+hkdf = "0.12"
+hmac = "0.12"
+sha2 = "0.10"
+blake3 = "1.5"
+rand = "0.8"
+subtle = "2.5"
+ed25519-dalek = { version = "2", default-features = false, features = ["std", "fast", "rand_core"] }
+# Fase 2 (8.4, paso 1: "intercambio de Diffie-Hellman efímero, curva
+# X25519"). Misma familia de curvas de Bernstein y mismo mantenedor de
+# referencia (dalek-cryptography) que ed25519-dalek, ya en uso. Ambas
+# dependen de la familia rand_core = "0.6.x" — confirmado por
+# compilación real en este checkpoint (ver CHANGELOG.md Etapa 13),
+# no solo por documentación externa como en el tramo anterior.
+#
+# feature "static_secrets": NO se usa en el código productivo (que solo
+# usa `EphemeralSecret`, deliberadamente no reutilizable — ver
+# session_handshake.rs). Se activa exclusivamente porque el test del
+# vector oficial RFC 7748 §6.1 necesita cargar una clave privada FIJA y
+# conocida para reproducir el vector de prueba, algo que
+# `EphemeralSecret` prohíbe por diseño (es la propiedad de seguridad
+# que impide reutilizar una clave efímera). Sin esta feature, la
+# entrega anterior de este módulo no compilaba — error detectado recién
+# al compilar de verdad en este checkpoint, no por revisión manual.
+x25519-dalek = { version = "2", features = ["static_secrets"] }
