@@ -1,106 +1,79 @@
 # Lacre Prime
 
-**Un protocolo de integridad de tránsito para respuestas de APIs y modelos de IA consumidas por agentes autónomos.**
+**Un Protocolo de Integridad en Tránsito: demuestra que una respuesta llegó a quien la consume byte por byte como la produjo la fuente.**
 
-Lacre certifica que una respuesta fragmentada llega a su consumidor sin alteraciones — idéntica, byte a byte, a lo que la fuente produjo — con latencia inferior al milisegundo y sin necesidad de inspeccionar el contenido que transporta. No certifica que el contenido sea veraz, solo que es íntegro.
+Lacre fragmenta una respuesta, sella cada fragmento con una etiqueta de autenticación que viaja solo en la cabecera del transporte, y purga el estado de cada fragmento cuando se confirma la entrega. No inspecciona el contenido ni dice si es verdadero, solo si está intacto. Es de propósito general: respuestas de API, salida de modelos de IA, resultados de herramientas, o cualquier flujo que cruce infraestructura que no controlás del todo.
 
 🇬🇧 [Read in English](README.md)
 
 ## Por qué
 
-TLS protege el tubo, no el agua. HTTPS garantiza que un canal no fue alterado en tránsito y que el servidor es quien dice ser — no dice nada sobre si la respuesta en sí fue alterada después de generarse, por un proxy comprometido, un paso de serialización corrupto, o un atacante con acceso a infraestructura posterior a la terminación TLS. Para un agente autónomo que toma una decisión en tiempo real a partir de una respuesta de API o de un modelo, esa brecha importa.
-
-La verificación pesada (pruebas de conocimiento cero, consenso multi-nodo) cierra esa brecha, pero cuesta de segundos a minutos — incompatible con un agente que decide en tiempo real. Lacre ocupa el espacio entre "sin verificación adicional" y "verificación pesada": fragmentar la respuesta en unidades pequeñas, sellar cada fragmento con un código de autenticación de mensajes que viaja exclusivamente en la cabecera de transporte, y purgar el estado asociado a cada fragmento de inmediato tras confirmar su entrega.
+TLS protege la tubería, no el agua. Muestra que el canal no fue alterado y que el servidor es quien dice ser. No dice nada de si una respuesta fue cambiada después de generarse, por un proxy comprometido, un paso de serialización defectuoso o alguien con acceso aguas abajo de TLS. La verificación pesada (pruebas de conocimiento cero, consenso entre nodos) cierra esa brecha a un costo de segundos a minutos. Lacre queda entre "sin verificación extra" y eso.
 
 ## Arquitectura
 
-Tres capas con una frontera estricta, exigida de forma estructural — no por convención:
+Cuatro capas con un límite impuesto por las dependencias entre crates, no por convención:
 
 ```
-Adaptadores  (lacre-server)   — conoce HTTP/WebSocket/tokio, traduce un transporte concreto
-Profiles     (lacre-core)     — opera sobre frames YA verificados por el Núcleo
-Núcleo       (lacre-core)     — invariante: fragmenta, sella/verifica, purga
+Adaptadores  lacre-adapter-declarative / -http / -ws, compuestos por lacre-server
+Capa de app  lacre-domain    tipos de cable, operaciones, stores de sesión, política
+Profiles     lacre-profiles  trabajan sobre frames que el Núcleo ya verificó
+Núcleo       lacre-core      fragmenta, sella, verifica, purga; no nombra ningún algoritmo
 ```
 
-`lacre-core` y `lacre-server` son crates separados dentro de un workspace de Cargo. El Núcleo no tiene ninguna dependencia de `tokio`, `axum`, ni ningún runtime asíncrono — verificable de forma directa:
+Los algoritmos no están en el Núcleo. Viven en `lacre-seals` (el catálogo), y un nodo se compone con los que su operador compila y permite por política. `lacre-seal-conformance` es la suite que todo algoritmo debe pasar.
+
+## Qué hay
+
+- **Wire v1** (congelado) y **wire v2** (aditivo): el contrato está en [`Code/workspace/spec/`](Code/workspace/spec/). v2 agrega descriptores de suite, un archivo de política del operador y firmas como contrato propio.
+- **Algoritmos de sello** en el catálogo: `hmac-sha256`, `hmac-sha512`, `hmac-sha3-512`, `blake2b-keyed`, `blake3-keyed-xof`, `aes-cmac` y `kmac256` (marcado Experimental). `hmac-sha1` existe solo tras la característica de Cargo `legacy-seals` y la política por defecto lo bloquea.
+- **Esquema de firma**: `ed25519`, para el perfil `vault` bajo wire v2.
+- **Ejemplo de tercero**: [`Code/third-party/`](Code/third-party/) agrega `hmac-sha3-256` desde un workspace de Cargo aparte, sin cambiar un byte de `lacre-core` (comprobado con una huella de archivos).
+- **Servidor**: HTTP (`/v1/handshake`, `/v1/seal`, `/v1/verify`, `/v1/ack`, `/v1/receipts`, `/v1/validate`, `/v1/seal-algorithms`, `/v1/profiles`, `/v1/toolchain/...`) y WebSocket (`/v1/ws`).
+- **Detrás de intermediarios reales**: `Tools/intermediaries.py` corre la suite externa a través de nginx, haproxy y mitmproxy (y cadenas de ellos). 12 de 13 escenarios pasan los 337 casos; el que borra `Authorization` falla cerrado y funciona con el token en el cuerpo. Un intermediario que altera se detecta siempre. Resultados y requisitos de despliegue: [`LACRE-WIRE-v2.md` §11](Code/workspace/spec/LACRE-WIRE-v2.md).
+- **Herramientas de verificación** en [`Tools/`](Tools/): una suite externa de caja negra, arneses de mutación que comprueban que los tests fallan cuando se rompe el código, y generadores que escriben los vectores de respuesta conocida desde implementaciones independientes (Python se usa solo ahí; el protocolo es Rust).
+
+## Compilar y probar
+
+Requiere Rust 1.91+. No necesita servicios externos.
 
 ```bash
-cd lacre-core && cargo tree -i tokio
-# package ID specification `tokio` did not match any packages
-```
-
-## Qué está implementado
-
-Verificado con `cargo test --workspace` — no afirmado de memoria.
-
-### Núcleo (`lacre-core`)
-
-- Fragmentación de payload, sello HMAC (SHA-256 / Blake3) encadenado a través de la secuencia de fragmentos
-- Tipo de frame inmutable con máquinas de estado separadas para los roles de sellador y verificador
-- Buffer circular preasignado con purga por ACK y purga por timeout forzado
-- Firma Ed25519 opcional sobre el sello (no repudio, perfil Vault)
-- Recibo post-purga de solo adición (`SHA-256(sello)`, nunca recuperable hacia el contenido)
-- Derivación de clave de sesión vía HKDF, con intercambio de clave efímero X25519
-
-### Adaptadores (`lacre-server`)
-
-- **HTTP**: `/v1/health`, `/v1/handshake`, `/v1/seal`, `/v1/verify`, `/v1/ack`, `/v1/receipts/{session_id}`
-- **WebSocket**: `/v1/ws` — las mismas operaciones (`handshake`, `seal`, `verify`, `ack`) sobre una conexión persistente, confirmando que el Núcleo permanece agnóstico a qué transporte lo lleva
-- Perfiles de despliegue: **Core** (propósito general), **Vault** (grado financiero, Ed25519 + recibos), **Lite** (checksum ligero vía Blake3, sin HMAC completo)
-
-### Qué no está implementado todavía
-
-- Adaptador gRPC (dependencia presente en `Cargo.toml`, no conectado aún)
-- Perfiles de despliegue adicionales más allá de Core / Vault / Lite
-
-## Compilación
-
-```bash
-git clone https://github.com/<tu-usuario>/lacre-prime.git
-cd lacre-prime
+git clone https://github.com/maxeryn-lab/project-lacre-prime.git
+cd project-lacre-prime/Code/workspace
 cargo test --workspace
 ```
 
-Requiere Rust 1.91+ (edición 2021). No se necesitan servicios externos para correr la suite de tests.
+Al momento de esta actualización, `cargo test --workspace` corre 522 tests y todos pasan. El Núcleo no depende de `tokio` ni de ningún runtime asíncrono: `cd lacre-core && cargo tree -i tokio` no encuentra ese paquete.
 
-## Estructura del proyecto
+## Correr un nodo
 
-```
-lacre-core/            El Núcleo. Sin tokio. Sin HTTP. Sin conocimiento de "perfiles".
-  src/
-    core.rs             SealerCore / VerifierCore — fragmentación, sellado, purga
-    frame.rs             Frame inmutable + máquinas de estado por rol
-    hmac_seal.rs          Sellado HMAC-SHA256 / Blake3, comparación en tiempo constante
-    buffer.rs             Buffer circular preasignado, lógica de purga
-    session.rs             Derivación de clave de sesión X25519 + HKDF
-    vault_signature.rs      Firma Ed25519 (perfil Vault)
-    receipt.rs               Recibo post-purga de solo adición
-    profile.rs                 Reensamblado de frames (el único Profile de inspección de contenido hasta ahora)
-
-lacre-server/           La capa de Adaptadores. Depende de tokio/axum. Consume lacre-core.
-  src/
-    http_server.rs        Rutas HTTP
-    websocket_adapter.rs    Manejo del protocolo WebSocket
-    profile_config.rs        Presets de perfiles de despliegue (Core / Vault / Lite)
+```bash
+cd Code/workspace
+LACRE_SEAL_POLICY=preset:standard cargo run -p lacre-server -- --serve
 ```
 
-## Presentación al hackathon
+Sin `LACRE_SEAL_POLICY` el nodo habla solo wire v1; no hay valores por defecto silenciosos para v2. Para algo más que una prueba local, definí `LACRE_MASTER_KEY` y `LACRE_VAULT_SIGNING_KEY`; si no, el nodo genera claves aleatorias y avisa al arrancar. Los demás ajustes son variables de entorno con prefijo `LACRE_` (dirección de escucha, límites de sesión, plazo de petición, tope de cuerpo `LACRE_MAX_BODY_BYTES` con 2 MiB por defecto, clave de firma de `vault`).
 
-El despliegue de referencia público actual envuelve la API gratuita de Open-Meteo como un Miner de Telegraph Protocol (intents `weather_forecast` / `weather_check`) sobre Base Sepolia, sellando cada fragmento de respuesta con el mecanismo descrito arriba. Esa capa de integración no forma parte de este repositorio — este repositorio es la implementación del protocolo en sí, agnóstica de transporte y de caso de uso.
+Para correr la suite externa contra un servidor recién compilado, desde `Code/workspace`: `python3 ../../Tools/external_suite.py --spawn target/debug/lacre-server`.
+
+## Lo que falta
+
+- No hay adaptador gRPC.
+- Los recibos y las marcas de sesión completada viven en memoria con un límite de tiempo. Una auditoría permanente necesita un almacenamiento que elija quien despliega.
+- `kmac256` se comprobó solo contra la muestra 4 de NIST SP 800-185.
+- Todavía no hay un despliegue de terceros ni una auditoría independiente.
 
 ## Principios de diseño
 
-- **El Núcleo nunca inspecciona contenido.** La neutralidad es una decisión de diseño, no una limitación técnica — exigida manteniendo toda lógica de inspección de contenido enteramente en una capa separada (Profiles), nunca en el Núcleo.
-- **La purga es una garantía de seguridad, no housekeeping de memoria.** Eliminar el estado de un fragmento tras la confirmación de entrega se trata con la misma prioridad que calcular el propio sello.
-- **Fallo cerrado, siempre.** Cualquier fallo de verificación — un sello inválido, una firma faltante, una versión de protocolo no reconocida — descarta el fragmento o la sesión. Sin aceptación parcial, sin degradación silenciosa.
-- **Detectabilidad, no prevención.** Lacre no promete que la alteración sea imposible. Promete que, si ocurre, se detecta de inmediato y con certeza matemática — la misma propiedad que siempre tuvo un sello de cera sobre el cajón de una obra de museo.
+- **El Núcleo nunca inspecciona el contenido.** La neutralidad es una decisión de diseño.
+- **La purga es una garantía de seguridad, no limpieza de memoria.**
+- **Falla cerrado.** Un sello malo, una firma ausente o una versión desconocida descartan el fragmento o la sesión.
+- **Detectabilidad, no prevención.** Lacre no afirma que la manipulación sea imposible, solo que se detecta.
 
 ## Licencia
 
-Licenciado bajo **GNU Affero General Public License v3.0** (AGPL-3.0). Ver [`LICENSE`](LICENSE).
-
-En el futuro podría ofrecerse una licencia comercial para casos de uso incompatibles con los términos de copyleft de red de AGPL-3.0; contactar al mantenedor para consultas.
+GNU Affero General Public License v3.0 (AGPL-3.0). Ver [`LICENSE`](LICENSE).
 
 ## Contribuir
 
-Este proyecto está en desarrollo activo. Issues y pull requests son bienvenidos — por favor abrí un issue primero para cualquier cosa más allá de una corrección pequeña, para alinear la dirección antes de invertir trabajo en ello.
+Se aceptan issues y pull requests. Para algo más que una corrección chica, abrí primero un issue.

@@ -1,0 +1,20 @@
+[package]
+name = "lacre-tokio"
+version = "0.1.0"
+edition = "2021"
+
+# This crate is a Runtime layer wrapper, not a Core, Profile, or
+# Adapter — it depends on `lacre-core` alone, never on `lacre-server`
+# (whose `domain.rs`/`AppState` module is a private `mod`, not exposed
+# as a library target: there is nothing to depend on there yet). It
+# exists to let a caller that already runs its own Tokio application
+# use the real SealerCore/VerifierCore from `lacre-core` as `async fn`
+# calls, without standing up the full HTTP/WebSocket Adapter in
+# `lacre-server` for cases that don't need a network-facing service at
+# all — a library consumer, not a server.
+[dependencies]
+lacre-core = { path = "../lacre-core" }
+tokio = { version = "1", features = ["sync"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["sync", "rt", "macros"] }

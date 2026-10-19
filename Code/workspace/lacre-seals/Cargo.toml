@@ -1,0 +1,32 @@
+[package]
+name = "lacre-seals"
+version = "0.1.0"
+edition = "2021"
+
+# Catalogue of `SealMac` algorithms for wire v2 (E3). It lives OUTSIDE the
+# Core: `lacre-core` does not know this crate, and composing a registry from
+# it is a compile-time decision of whoever builds the binary (no dynamic
+# loading). Every algorithm is a thin adapter over a maintained, audited
+# crate; none implements a primitive itself.
+[features]
+default = []
+# SHA-1 only for historical interoperability. Never in default builds and
+# blocked by the default policy even when compiled in (policy: E4).
+legacy-seals = ["dep:sha1"]
+
+[dependencies]
+lacre-core = { path = "../lacre-core" }
+hmac = "0.12"
+sha2 = "0.10"
+sha3 = "0.10"
+blake2 = "0.10"
+blake3 = "1.5"
+aes = "0.8"
+cmac = "0.7"
+sha1 = { version = "0.10", optional = true }
+ed25519-dalek = { version = "2", default-features = false, features = ["std", "fast", "zeroize"] }
+
+[dev-dependencies]
+lacre-seal-conformance = { path = "../lacre-seal-conformance" }
+serde_json = "1"
+hex = "0.4"

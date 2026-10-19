@@ -1,0 +1,54 @@
+[package]
+name = "lacre-core"
+version = "0.1.0"
+edition = "2021"
+
+# Deliberately WITHOUT tokio, axum or any asynchronous runtime — see
+# section 7.2 of the Lacre Prime document ([DO]): "la implementación de
+# referencia del Núcleo debe ser compilable sin dependencia de un
+# runtime de ejecución asíncrona (...), constituyendo dicho runtime una
+# capa de adaptación opcional y no un requisito del Núcleo mismo."
+#
+# This file is the proof of that property, not just its declaration:
+# if someone adds `tokio` here one day, building this crate in isolation
+# (without lacre-server) would still compile — what would break the
+# guarantee is adding it as a dependency of this very Cargo.toml, and
+# that is visible at a glance in this file.
+[dependencies]
+hkdf = "0.12"
+hmac = "0.12"
+sha2 = "0.10"
+blake3 = "1.5"
+rand = "0.8"
+subtle = "2.5"
+ed25519-dalek = { version = "2", default-features = false, features = ["std", "fast", "rand_core", "zeroize"] }
+# Wipes secret key material on drop (SessionKey, SessionState, master key ikm,
+# DH shared secret, pending-buffer region). Pure Rust, no runtime, no unsafe on our side.
+zeroize = "1"
+# Phase 2 (8.4, step 1: "intercambio de Diffie-Hellman efímero, curva
+# X25519"). Same family of Bernstein curves and same reference maintainer
+# (dalek-cryptography) as ed25519-dalek, already in use. Both depend on
+# the rand_core = "0.6.x" family — confirmed by a real compilation at
+# that checkpoint (see CHANGELOG.md Stage 13), not only by external
+# documentation as in the previous stretch.
+#
+# feature "static_secrets": NOT used in production code (which only uses
+# `EphemeralSecret`, deliberately non-reusable — see session_handshake.rs).
+# It is enabled solely because the official RFC 7748 §6.1 vector test
+# must load a FIXED, known private key to reproduce the test vector,
+# something `EphemeralSecret` forbids by design (that is the security
+# property that prevents reusing an ephemeral key). Without this feature
+# the previous delivery of this module did not compile — an error found
+# only by really compiling at that checkpoint, not by manual review.
+x25519-dalek = { version = "2", features = ["static_secrets"] }
+# `regex` is NOT here: `certifier` and `rule_engine` use it, and they live
+# in `lacre-profiles` since the modularization (DECISIONS point 26). The
+# Core stays free of tokio, axum and regex.
+
+# Test only: read the normative known-answer vectors (spec/vectors/wire-v1.json).
+# They do not enter the Core's build.
+[dev-dependencies]
+serde_json = "1"
+hex = "0.4"
+proptest = "1"
+trybuild = "1"

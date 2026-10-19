@@ -1,0 +1,5 @@
+# A SEPARATE Cargo workspace from the production one (Code/workspace). Nothing here is a
+# member of that workspace: the Core and the server do not know it exists (E6).
+[workspace]
+resolver = "2"
+members = ["hmac-sha3-256-seal", "node-with-hmac-sha3-256"]

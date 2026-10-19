@@ -1,0 +1,20 @@
+[package]
+name = "lacre-domain"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+lacre-core = { path = "../lacre-core" }
+lacre-profiles = { path = "../lacre-profiles" }
+hex = "0.4.3"
+hmac = "0.12"
+sha2 = "0.10"
+subtle = "2.5"
+zeroize = "1"
+rand = "0.8.7"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+
+# Test only: properties and decoder robustness (E3).
+[dev-dependencies]
+proptest = "1"

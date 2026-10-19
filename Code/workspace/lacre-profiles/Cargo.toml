@@ -1,0 +1,19 @@
+[package]
+name = "lacre-profiles"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+lacre-core = { path = "../lacre-core" }
+# Certifier (Annex 2.0, Family X) requires real regular expressions —
+# its own textual example ("LA-[0-9]{12}-[A-F0-9-]{36}") has character
+# classes and quantifiers that a literal-substring engine cannot
+# evaluate. `rule_engine.rs`'s own `Condition::PatternMatch` initially
+# only did exact substring search (documented as a real gap in its own
+# header comment); Certifier is the first Profile that forces resolving
+# that gap for real instead of approximating it. The `regex` crate
+# (rust-lang/regex, maintained by the Rust team itself) is used for the
+# same reason that governs HMAC/signing in this project: do not reinvent
+# a primitive that is already well solved and audited — applied here to
+# text, not to cryptography, but with the same logic.
+regex = "1"

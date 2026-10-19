@@ -1,0 +1,17 @@
+[package]
+name = "node-with-hmac-sha3-256"
+version = "0.1.0"
+edition = "2021"
+
+# Alternative composition binary: the same node as lacre-server, with the
+# third-party algorithm added to the registry. This is how an operator
+# "brings their own algorithm": a compile-time decision, without touching the Core.
+[dependencies]
+hmac-sha3-256-seal = { path = "../hmac-sha3-256-seal" }
+lacre-core = { path = "../../workspace/lacre-core" }
+lacre-domain = { path = "../../workspace/lacre-domain" }
+lacre-adapter-http = { path = "../../workspace/lacre-adapter-http" }
+lacre-seals = { path = "../../workspace/lacre-seals" }
+lacre-server = { path = "../../workspace/lacre-server" }
+axum = "0.8.9"
+tokio = { version = "1.53.1", features = ["full"] }

@@ -1,0 +1,25 @@
+[package]
+name = "lacre-seal-conformance"
+version = "0.1.0"
+edition = "2021"
+
+# Conformance suite for `SealMac` implementations (wire v2, E2).
+#
+# Direction of the dependency: this crate depends on `lacre-core`; the Core
+# never depends on it (a test of this crate's own suite checks that, and
+# `cargo tree -i lacre-seal-conformance` shows no path from `lacre-core`).
+# It has NO cryptographic dependency of its own at runtime: a candidate
+# algorithm is judged by its behaviour and by known-answer vectors that the
+# candidate's author supplies, never by a reference implementation hidden in
+# the suite.
+[dependencies]
+lacre-core = { path = "../lacre-core" }
+
+# Test only: the reference algorithms of the positive controls, and the
+# independent vectors produced by Tools/gen_suite_vectors.py (Python).
+[dev-dependencies]
+hmac = "0.12"
+sha2 = "0.10"
+blake3 = "1.5"
+serde_json = "1"
+hex = "0.4"

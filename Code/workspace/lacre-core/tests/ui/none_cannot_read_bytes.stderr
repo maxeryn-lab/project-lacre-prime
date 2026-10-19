@@ -1,0 +1,5 @@
+error[E0599]: no method named `content_bytes` found for reference `&ContentView<'_, NoContent>` in the current scope
+ --> tests/ui/none_cannot_read_bytes.rs:5:10
+  |
+5 |     view.content_bytes().len()
+  |          ^^^^^^^^^^^^^ method not found in `&ContentView<'_, NoContent>`

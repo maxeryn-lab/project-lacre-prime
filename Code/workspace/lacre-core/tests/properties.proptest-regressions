@@ -1,0 +1,9 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 9d29a8a2588531ec0543e035417f7ecb1473c817719bbd4fc5aae08b9646fa10 # shrinks to c = Case { algo: Sha256, ikm: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], sid: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], payload: [], slot: 1 }, a = Index(9223372036854775808), b = Index(0)
+cc 3c86d770690180e5a4399564ecdbe913ea2c0761e97adaf435393a82a97fff6b # shrinks to c = Case { algo: Sha256, ikm: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], sid: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], payload: [], slot: 1 }, pick = Index(0), bit = 0, flip_seal = false, bit_idx = Index(9223372036854775808)
+cc 8958038e12266ce6308c356f2452e15cb8156274f0ef03fe0e9102f4f34c0526 # shrinks to c = Case { algo: Sha256, ikm: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], sid: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], payload: [], slot: 1 }

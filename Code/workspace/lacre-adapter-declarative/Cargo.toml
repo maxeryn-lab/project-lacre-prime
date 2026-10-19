@@ -1,0 +1,17 @@
+[package]
+name = "lacre-adapter-declarative"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+lacre-core = { path = "../lacre-core" }
+lacre-domain = { path = "../lacre-domain" }
+lacre-profiles = { path = "../lacre-profiles" }
+serde_json = "1.0.151"
+tokio = { version = "1.53.1", features = ["rt", "time"] }
+serde = { version = "1.0.229", features = ["derive"] }
+
+[dev-dependencies]
+hex = "0.4.3"
+rand = "0.8.7"
+

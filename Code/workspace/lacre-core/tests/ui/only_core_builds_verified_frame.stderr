@@ -1,0 +1,10 @@
+error[E0624]: associated function `new` is private
+  --> tests/ui/only_core_builds_verified_frame.rs:13:34
+   |
+13 |     let _forged = VerifiedFrame::new(&frame);
+   |                                  ^^^ private associated function
+   |
+  ::: src/access.rs
+   |
+   |     pub(crate) fn new(frame: &'a LacreFrame) -> Self {
+   |     ------------------------------------------------ private associated function defined here

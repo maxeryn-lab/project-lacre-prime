@@ -1,0 +1,3 @@
+[workspace]
+resolver = "2"
+members = ["lacre-core", "lacre-profiles", "lacre-domain", "lacre-adapter-declarative", "lacre-adapter-ws", "lacre-adapter-http", "lacre-server", "lacre-tokio", "lacre-seal-conformance", "lacre-seals"]

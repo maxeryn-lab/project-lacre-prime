@@ -1,0 +1,26 @@
+[package]
+name = "lacre-server"
+version = "0.1.0"
+edition = "2021"
+
+# Composition binary: contains no adapter logic; it only builds the
+# AppState and mounts the HTTP Adapter router (which in turn mounts the WS one).
+[features]
+default = []
+# Compiles the legacy algorithms in. They stay denied unless the policy names them too.
+legacy-seals = ["lacre-seals/legacy-seals"]
+
+[dependencies]
+lacre-core = { path = "../lacre-core" }
+lacre-domain = { path = "../lacre-domain" }
+lacre-adapter-http = { path = "../lacre-adapter-http" }
+lacre-seals = { path = "../lacre-seals" }
+serde_json = "1"
+axum = { version = "0.8.9", features = ["ws"] }
+hex = "0.4.3"
+rand = "0.8.7"
+tokio = { version = "1.53.1", features = ["full"] }
+
+[dev-dependencies]
+tower = { version = "0.5.3", features = ["util"] }
+lacre-domain = { path = "../lacre-domain" }

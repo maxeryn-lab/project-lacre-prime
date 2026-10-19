@@ -1,0 +1,17 @@
+[package]
+name = "hmac-sha3-256-seal"
+version = "0.1.0"
+edition = "2021"
+
+# A seal algorithm written by "a third party": it only knows the `SealMac` contract
+# of lacre-core and a maintained crate for the primitive. It does not touch the Core.
+[dependencies]
+lacre-core = { path = "../../workspace/lacre-core" }
+hmac = "0.12"
+sha3 = "0.10"
+
+[dev-dependencies]
+lacre-seal-conformance = { path = "../../workspace/lacre-seal-conformance" }
+lacre-seals = { path = "../../workspace/lacre-seals" }
+serde_json = "1"
+hex = "0.4"

@@ -1,0 +1,5 @@
+error[E0616]: field `frame` of struct `ContentView` is private
+ --> tests/ui/view_has_no_public_frame.rs:4:10
+  |
+4 |     view.frame.payload.len()
+  |          ^^^^^ private field
